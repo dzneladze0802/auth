@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as bcrypt from 'bcrypt';
 
 import { Users } from './users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -25,7 +26,10 @@ export class UsersService {
         throw new NotFoundException('User already registered with this email.');
       }
 
-      const createdUser = new this.usersModel(userDto);
+      const createdUser = new this.usersModel({
+        ...userDto,
+        password: await bcrypt.hash(userDto?.password, 10),
+      });
       await createdUser.save();
 
       return {
@@ -36,8 +40,7 @@ export class UsersService {
       throw new HttpException(
         {
           statusCode: HttpStatus.BAD_REQUEST,
-          message: 'Data is not valid',
-          error: error.message,
+          message: error.message,
         },
         HttpStatus.BAD_REQUEST,
       );
@@ -45,7 +48,7 @@ export class UsersService {
   }
 
   private async checkIfUserExists(email: string): Promise<boolean> {
-    const user = this.usersModel.findOne({ email }).exec();
+    const user = await this.usersModel.findOne({ email }).exec();
 
     if (user) {
       return true;
